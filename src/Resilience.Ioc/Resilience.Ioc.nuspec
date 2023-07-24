@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+        <id>Automation.Common.Resilience</id>
+        <version>0.0.1</version>
+        <authors>Andrew Chang</authors>
+        <projectUrl>https://bitbucket.org/andychangdev/resilience</projectUrl>
+        <description>Resilience library for automation frameworks</description>
+        <tags>automation qa resilience</tags>
+        <dependencies>
+            <dependency id="Ardalis.GuardClauses" version="4.0" />
+            <dependency id="BoDi" version="1.5" />
+            <dependency id="Polly" version="7.2.2" />
+            <dependency id="Serilog" version="2.10.0" />
+            <dependency id="Serilog.Sinks.Console" version="4.0.0" />
+            <dependency id="Microsoft.Extensions.DependencyInjection" version="7.0.0" />
+        </dependencies>
+    </metadata>
+</package>
