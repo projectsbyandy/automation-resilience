@@ -1,0 +1,44 @@
+stages:
+  - stage: publish
+    jobs:
+      - job: build_and_publish
+        steps:
+          - task: Assembly-Info-NetCore@3
+            inputs:
+              displayName: 'Updated Assembly versioning'
+              Path: '$(Build.SourcesDirectory)'
+              FileNames: '**/*.csproj'
+              InsertAttributes: false
+              FileEncoding: 'auto'
+              WriteBOM: false
+              VersionNumber: $(Build.BuildNumber)
+              FileVersionNumber: $(Build.BuildNumber)
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Restoring project'
+            inputs:
+              command: 'restore'
+              projects: '**/*.sln'
+              arguments: '--configuration $(BuildConfiguration)'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Build Solution'
+            inputs:
+              command: 'build'
+              projects: '**/*.sln'
+              arguments: '--configuration $(BuildConfiguration)'            
+
+          - task: NuGetCommand@2
+            displayName: 'Create Nuget Package'
+            inputs:
+             command: 'pack'
+             packagesToPack: '**/Resilience.Ioc.csproj'
+             includeReferencedProjects: 'true'
+             versioningScheme: 'byBuildNumber'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Push to Nuget'
+            inputs:
+              command: push
+              packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'              
+              publishVstsFeed: 'f5fad54a-8d9a-462e-9001-24cc808620c8'

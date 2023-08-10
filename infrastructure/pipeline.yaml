@@ -1,0 +1,21 @@
+name: $(Date:yy).$(Date:MM).$(Date:dd).$(Rev:r)
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - template: ../pipelines/templates/variables.yaml
+
+stages:
+  - template: ../pipelines/stages/build.yaml
+    parameters:
+      stageName: build    
+  - template: ../pipelines/stages/test.yaml
+    parameters:
+      stageName: test
+  - template: ../pipelines/stages/publish.yaml
+    parameters:
+      stageName: publish

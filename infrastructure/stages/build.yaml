@@ -1,0 +1,29 @@
+stages:
+  - stage: build
+    jobs:
+      - job: build
+        steps:
+          - task: Assembly-Info-NetCore@3
+            displayName: 'Updated Assembly versioning'
+            inputs:
+              Path: '$(Build.SourcesDirectory)'
+              FileNames: '**/*.csproj'
+              InsertAttributes: false
+              FileEncoding: 'auto'
+              WriteBOM: false
+              VersionNumber: $(Build.BuildNumber)
+              FileVersionNumber: $(Build.BuildNumber)
+              
+          - task: DotNetCoreCLI@2
+            displayName: 'Restoring project'
+            inputs:
+              command: 'restore'
+              projects: '**/*.sln'
+              arguments: '--configuration $(BuildConfiguration)'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Build Solution'
+            inputs:
+              command: 'build'
+              projects: '**/*.sln'
+              arguments: '--configuration $(BuildConfiguration)'

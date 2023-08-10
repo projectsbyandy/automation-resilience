@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
     <metadata>
-        <id>Automation.Common.Resilience</id>
+        <id>Automation.Resilience</id>
         <version>0.0.1</version>
         <authors>Andrew Chang</authors>
-        <projectUrl>https://bitbucket.org/andychangdev/resilience</projectUrl>
+        <projectUrl>https://github.com/projectsbyandy/automation-resilience</projectUrl>
         <description>Resilience library for automation frameworks</description>
         <tags>automation qa resilience</tags>
         <dependencies>
