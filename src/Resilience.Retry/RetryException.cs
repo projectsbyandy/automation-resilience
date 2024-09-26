@@ -1,8 +1,9 @@
-namespace Resilience.Retry;
-
-public class RetryException : Exception
+namespace Resilience.Retry
 {
-    public RetryException(string message) : base(message)
+    public class RetryException : Exception
     {
+        public RetryException(string message) : base(message)
+        {
+        }
     }
 }
