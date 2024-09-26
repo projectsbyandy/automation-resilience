@@ -5,8 +5,8 @@ namespace Resilience.Ioc;
 
 public static class MsDependencyInjection
 {
-    public static ServiceCollection AddResilienceSupport(this ServiceCollection serviceCollection,
-        bool addLoggerSupport)
+    public static IServiceCollection AddResilienceSupport(this IServiceCollection serviceCollection,
+        bool addLoggerSupport = true)
     {
         if (addLoggerSupport)
             serviceCollection.AddSingleton(LoggerManager.Create());

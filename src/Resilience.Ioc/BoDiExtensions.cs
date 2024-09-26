@@ -3,14 +3,14 @@ using Resilience.Retry;
 
 namespace Resilience.Ioc;
 
-public static class BodiExtensions
+public static class BoDiExtensions
 {
-    public static ObjectContainer AddResilienceSupport(this ObjectContainer objectContainer, bool addLoggerSupport)
+    public static IObjectContainer AddResilienceSupport(this IObjectContainer objectContainer, bool addLoggerSupport = true)
     {
         if (addLoggerSupport)
             objectContainer.RegisterInstanceAs(LoggerManager.Create());
             
-        objectContainer.RegisterTypeAs<ResilienceRetry, ResilienceRetry>();
+        objectContainer.RegisterTypeAs<ResilienceRetry, IResilienceRetry>();
         
         return objectContainer;
     }

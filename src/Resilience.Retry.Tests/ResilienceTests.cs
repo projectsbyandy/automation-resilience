@@ -1,11 +1,10 @@
-#nullable disable
 using FluentAssertions;
 using Moq;
 using Serilog;
 
 namespace Resilience.Retry.Tests
 {
-    public class SynchronizationTests
+    internal class SynchronizationTests
     {
         private IResilienceRetry _sut;
         private Mock<ILogger> _loggerMock;
