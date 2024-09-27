@@ -12,10 +12,10 @@ namespace Resilience.Retry
         {
             _logger = logger;
         }
-
-        public void Perform(Action action, TimeSpan timeSpan, int retries)
+        
+        public void Perform(Action action, TimeSpan wait, int retries)
         {
-            CreatePolicy(timeSpan, retries)
+            CreatePolicy(wait, retries)
                 .Execute(action.Invoke);    
         }
     
@@ -25,9 +25,9 @@ namespace Resilience.Retry
                 .ExecuteAsync(func.Invoke);
         }
 
-        public T PerformReturn<T>(Func<T> func, TimeSpan timeSpan, int retries)
+        public T PerformWithReturn<T>(Func<T> func, TimeSpan wait, int retries)
         {
-            var execution = CreatePolicy(timeSpan, retries)
+            var execution = CreatePolicy(wait, retries)
                 .ExecuteAndCapture(func.Invoke);
 
             return execution.FinalException is null
@@ -35,14 +35,50 @@ namespace Resilience.Retry
                 : throw new RetryException(execution.FinalException.Message);
         }
 
-        public async Task<T> PerformReturnAsync<T>(Func<Task<T>> func, TimeSpan timeSpan, int retries)
+        public async Task<T> PerformWithReturnAsync<T>(Func<Task<T>> func, TimeSpan wait, int retries)
         {
-            return await CreateAsyncPolicy(timeSpan, retries)
+            return await CreateAsyncPolicy(wait, retries)
                 .ExecuteAsync(func.Invoke);
         }
+
+        public void UntilTrue(string retryMessage, Func<bool> func, TimeSpan wait, int retries)
+            => PerformBooleanRetry(true, retryMessage, func, wait, retries);
+        
+        public async Task UntilTrueAsync(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
+            => await PerformBooleanRetryAsync(true, retryMessage, func, wait, retries);
+        
+        public void UntilFalse(string retryMessage, Func<bool> func, TimeSpan wait, int retries)
+            => PerformBooleanRetry(false, retryMessage, func, wait, retries);
     
+        public async Task UntilTrueFalse(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
+            => await PerformBooleanRetryAsync(false, retryMessage, func, wait, retries);
+        
+        private void PerformBooleanRetry(bool expectedOutcome, string retryMessage, Func<bool> func, TimeSpan timeSpan, int retries)
+        {
+            Perform(() =>
+            {
+                var outcome = func.Invoke();
+                if (outcome == expectedOutcome)
+                    return;
+
+                throw new RetryException(retryMessage);
+            }, timeSpan, retries);
+        }
+        
+        private async Task PerformBooleanRetryAsync(bool expectedOutcome, string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
+        {
+            var actualOutcome = await CreateAsyncPolicy(wait, retries)
+                .ExecuteAsync(func.Invoke);
+
+            if (actualOutcome != expectedOutcome)
+                throw new RetryException(retryMessage);
+        }
+        
         private AsyncRetryPolicy CreateAsyncPolicy(TimeSpan wait, int retries)
         {
+            if (retries <=0)
+                throw new ArgumentException("Retry count should be greater than zero");
+            
             return Policy
                 .Handle<RetryException>()
                 .WaitAndRetryAsync(retries,
@@ -52,14 +88,14 @@ namespace Resilience.Retry
     
         private Policy CreatePolicy(TimeSpan wait, int retries)
         {
+            if (retries <=0)
+                throw new ArgumentException("Retry count should be greater than zero");
+            
             return Policy
                 .Handle<RetryException>()
                 .WaitAndRetry(retries,
                     _ => wait,
-                    onRetry: (exception, _, _) =>
-                    {
-                        OnRetry(exception);
-                    });
+                    onRetry: (exception, _, _) =>OnRetry(exception));
         }
 
         private void OnRetry(Exception exception)

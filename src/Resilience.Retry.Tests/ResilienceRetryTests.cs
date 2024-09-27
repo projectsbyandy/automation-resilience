@@ -31,7 +31,7 @@ namespace Resilience.Retry.Tests
             {
                 _sut.Perform(() =>
                     VerifyTestResultList(testResults, _retryAttempts),
-                    TimeSpan.FromMilliseconds(100),
+                    TimeSpan.FromMilliseconds(1),
                     3);
             });
 
@@ -54,7 +54,7 @@ namespace Resilience.Retry.Tests
             {
                 _sut.Perform(() =>
                         VerifyTestResultList(testResults, _retryAttempts, retriesTillSuccess),
-                    TimeSpan.FromMilliseconds(100),
+                    TimeSpan.FromMilliseconds(1),
                     retries);
             });
 
@@ -62,6 +62,27 @@ namespace Resilience.Retry.Tests
                     "Retrying due to: {@Message} at {@DateTime}",
                     It.IsAny<string>(), It.IsAny<object>()),
                 Times.Exactly(retriesTillSuccess));
+        }
+        
+        [TestCase(0)]
+        [TestCase(-1)]
+        [TestCase(-3)]
+        public void Retry_throws_ArgumentException_when_retries_less_than_or_equal_to_zero(int retries)
+        {
+            // Arrange
+            var testResults = new List<string>() { "pass", "fail", "retry" };
+
+            // Act
+            var exception = Assert.Throws<ArgumentException>(() =>
+            {
+                _sut.Perform(() =>
+                        VerifyTestResultList(testResults, _retryAttempts, retries),
+                    TimeSpan.FromMilliseconds(1),
+                    retries);
+            });
+            
+            // Assert
+            exception.Message.Should().Be("Retry count should be greater than zero");
         }
 
         [Test]
@@ -95,7 +116,7 @@ namespace Resilience.Retry.Tests
             {
                 _sut.Perform(() =>
                         VerifyTestResultList(testResults, _retryAttempts),
-                    TimeSpan.FromMilliseconds(10),
+                    TimeSpan.FromMilliseconds(1),
                     retriesToThrow);
             });
 
@@ -141,7 +162,7 @@ namespace Resilience.Retry.Tests
             {
                 await _sut.PerformAsync(async () =>
                     await VerifyTestResultListAsync(testResults, _retryAttempts),
-                    TimeSpan.FromMilliseconds(100),
+                    TimeSpan.FromMilliseconds(1),
                     3);
             });
 
@@ -151,6 +172,27 @@ namespace Resilience.Retry.Tests
                 Times.Never);
         }
 
+        [TestCase(0)]
+        [TestCase(-1)]
+        [TestCase(-3)]
+        public void RetryAsync_throws_ArgumentException_when_retries_less_than_or_equal_to_zero(int retries)
+        {
+            // Arrange
+            var testResults = new List<string>() { "pass", "fail", "retry" };
+
+            // Act
+            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
+            {
+                await _sut.PerformAsync(async () =>
+                        await VerifyTestResultListAsync(testResults, _retryAttempts),
+                    TimeSpan.FromMilliseconds(1),
+                    retries);
+            });
+            
+            // Assert
+            exception.Message.Should().Be("Retry count should be greater than zero");
+        }
+        
         [TestCase(1, 2)]
         [TestCase(2, 3)]
         [TestCase(5, 6)]
@@ -185,7 +227,7 @@ namespace Resilience.Retry.Tests
             {
                 await _sut.PerformAsync(async () =>
                         await VerifyTestResultListAsync(testResults, _retryAttempts),
-                    TimeSpan.FromMilliseconds(10),
+                    TimeSpan.FromMilliseconds(1),
                     3);
             });
 
@@ -205,7 +247,7 @@ namespace Resilience.Retry.Tests
             {
                 await _sut.PerformAsync(async () =>
                         await VerifyTestResultListAsync(testResults, _retryAttempts),
-                    TimeSpan.FromMilliseconds(10),
+                    TimeSpan.FromMilliseconds(1),
                     retriesToThrow);
             });
 
@@ -223,7 +265,7 @@ namespace Resilience.Retry.Tests
             var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 await _sut.PerformAsync(async() => await ProcessThatDoesNotThrowRetryAsync(),
-                    TimeSpan.FromMilliseconds(10),
+                    TimeSpan.FromMilliseconds(1),
                     3);
             });
 
@@ -248,8 +290,8 @@ namespace Resilience.Retry.Tests
             const int maxRetriedBeforeFailure = 3;
 
             // Act
-            var ingested = _sut.PerformReturn(
-                () => WaitForThirdPartyIngestion(_retryAttempts, retriesTillSuccess),
+            var ingested = _sut.PerformWithReturn(
+                () => ReturnOutcomeWithRetryException(_retryAttempts, retriesTillSuccess),
                 TimeSpan.FromMilliseconds(10), maxRetriedBeforeFailure);
 
             // Assert
@@ -269,9 +311,9 @@ namespace Resilience.Retry.Tests
             const int maxRetriedBeforeFailure = 3;
 
             // Act / Assert
-            var exception = Assert.Throws<RetryException>(() => _sut.PerformReturn(
-                () => WaitForThirdPartyIngestion(_retryAttempts, retriesTillSuccess),
-                TimeSpan.FromMilliseconds(10), maxRetriedBeforeFailure));
+            var exception = Assert.Throws<RetryException>(() => _sut.PerformWithReturn(
+                () => ReturnOutcomeWithRetryException(_retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetriedBeforeFailure));
 
             exception?.Message.Should().Be("Problem with Ingestion Retrying");
         }
@@ -280,18 +322,17 @@ namespace Resilience.Retry.Tests
 
         #region Tests for Return Async Retry
 
-        [Test]
-        public async Task Retry_ReturnAsync_Successful()
+        [TestCase(2, 3)]
+        [TestCase(1, 2)]
+        [TestCase(3, 4)]
+        public async Task Retry_ReturnAsync_Successful(int retriesTillSuccess, int maxRetriedBeforeFailure)
         {
-            // Arrange
-            const int retriesTillSuccess = 2;
-            const int maxRetriedBeforeFailure = 3;
+            // Arrange / Act
+            var ingested = await _sut.PerformWithReturnAsync(
+                async () => await ReturnOutcomeWithRetryExceptionAsync(true, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetriedBeforeFailure);
 
-            // Act
-            var ingested = await _sut.PerformReturnAsync(
-                async () => await WaitForThirdPartyIngestionAsync(_retryAttempts, retriesTillSuccess),
-                TimeSpan.FromMilliseconds(10), maxRetriedBeforeFailure);
-
+            // Assert
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
                     It.IsAny<string>(), It.IsAny<object>()),
@@ -300,24 +341,87 @@ namespace Resilience.Retry.Tests
             ingested.Should().BeTrue("Ingestion Async is successful");
         }
 
-        [Test]
-        public void Retry_ReturnAsync_Test_Failed()
+        [TestCase(3,2)]
+        [TestCase(6,4)]
+        [TestCase(4,3)]
+        public void Retry_ReturnAsync_Test_Failed(int retriesTillSuccess, int maxRetriedBeforeFailure)
         {
             // Arrange
             _retryAttempts = 0;
-            const int retriesTillSuccess = 4;
-            const int maxRetriedBeforeFailure = 2;
-
-            // Act
-            var exception = Assert.ThrowsAsync<RetryException>(async () => await _sut.PerformReturnAsync(
-                async () => await WaitForThirdPartyIngestionAsync(_retryAttempts, retriesTillSuccess),
-                TimeSpan.FromMilliseconds(10), maxRetriedBeforeFailure));
+            
+            // Act / Assert
+            var exception = Assert.ThrowsAsync<RetryException>(async () => await _sut.PerformWithReturnAsync(
+                async () => await ReturnOutcomeWithRetryExceptionAsync(false, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetriedBeforeFailure));
 
             exception?.Message.Should().Be("Problem with Ingestion Async Retrying");
         }
 
         #endregion
 
+        #region Tests Retry Until True
+        
+        [TestCase(3,5)]
+        [TestCase(2,4)]
+        [TestCase(1,1)]
+        public void Verify_Successful_Retry_Until_True(int retriesTillSuccess, int maxRetries)
+        {
+            // Arrange / Act
+            Assert.DoesNotThrow(()=> _sut.UntilTrue("Waiting for True", 
+                () => ReturnOutcome(true, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetries));
+            
+            // Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    "Waiting for True", It.IsAny<object>()),
+                Times.Exactly(retriesTillSuccess));
+        }
+        
+        #endregion
+        
+        #region Tests Retry Until False
+        
+        [Test]
+        public void Verify_Successful_Retry_Until_False()
+        {
+            // Arrange
+            
+            // Act
+            
+            // Assert
+        }
+        
+        #endregion
+        
+        #region Tests Retry Until True Async
+
+        [Test]
+        public void Verify_Successful_Retry_Until_True_Async()
+        {
+            // Arrange
+            
+            // Act
+            
+            // Assert
+        }
+        
+        #endregion
+        
+        #region Tests Retry Until False Async
+        
+        [Test]
+        public void Verify_Successful_Retry_Until_False_Async()
+        {
+            // Arrange
+            
+            // Act
+            
+            // Assert
+        }
+        
+        #endregion
+        
         #region Helpers
 
         private void VerifyTestResultList(List<string> testResults, int retryAttempts, int retriesTillSuccess = 50)
@@ -356,22 +460,27 @@ namespace Resilience.Retry.Tests
             throw new ArgumentException("This Exception does not trigger a retry");
         }
 
-        private bool WaitForThirdPartyIngestion(int retryAttempt, int numberOfRetriesTillSuccess)
+        private bool ReturnOutcomeWithRetryException(int retryAttempt, int numberOfRetriesTillSuccess)
         {
-            if (retryAttempt == numberOfRetriesTillSuccess)
-                return true;
-
-            _retryAttempts++;
-            throw new RetryException("Problem with Ingestion Retrying");
+            return ReturnOutcome(true, retryAttempt, numberOfRetriesTillSuccess) is false
+                ? throw new RetryException("Problem with Ingestion Retrying")
+                : true;
         }
 
-        private async Task<bool> WaitForThirdPartyIngestionAsync(int retryAttempt, int numberOfRetriesTillSuccess)
+        private async Task<bool> ReturnOutcomeWithRetryExceptionAsync(bool expectedOutcome, int retryAttempt, int numberOfRetriesTillSuccess)
+        {
+            return ReturnOutcome(true, retryAttempt, numberOfRetriesTillSuccess) is false
+                ? throw new RetryException("Problem with Ingestion Async Retrying")
+                : await Task.FromResult(expectedOutcome);
+        }
+
+        private bool ReturnOutcome(bool expectedOutcome, int retryAttempt, int numberOfRetriesTillSuccess)
         {
             if (retryAttempt == numberOfRetriesTillSuccess)
-                return await Task.FromResult(true);
-
+                return expectedOutcome;
+            
             _retryAttempts++;
-            throw new RetryException("Problem with Ingestion Async Retrying");
+            return !expectedOutcome;
         }
 
         #endregion
