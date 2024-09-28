@@ -37,7 +37,7 @@ namespace Resilience.Retry.Tests
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Never);
         }
 
@@ -60,7 +60,7 @@ namespace Resilience.Retry.Tests
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Exactly(retriesTillSuccess));
         }
         
@@ -123,7 +123,7 @@ namespace Resilience.Retry.Tests
             // Assert
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Exactly(expectedNumberOfLogEntries));
         }
 
@@ -143,7 +143,7 @@ namespace Resilience.Retry.Tests
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Never);
         }
 
@@ -168,7 +168,7 @@ namespace Resilience.Retry.Tests
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Never);
         }
 
@@ -212,7 +212,7 @@ namespace Resilience.Retry.Tests
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Exactly(retriesTillSuccess));
         }
 
@@ -254,7 +254,7 @@ namespace Resilience.Retry.Tests
             // Assert
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Exactly(expectedNumberOfLogEntries));
         }
 
@@ -274,7 +274,7 @@ namespace Resilience.Retry.Tests
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Never);
         }
 
@@ -299,7 +299,7 @@ namespace Resilience.Retry.Tests
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Exactly(retriesTillSuccess));
         }
 
@@ -335,7 +335,7 @@ namespace Resilience.Retry.Tests
             // Assert
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    It.IsAny<string>(), It.IsAny<object>()),
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Exactly(retriesTillSuccess));
 
             ingested.Should().BeTrue("Ingestion Async is successful");
@@ -374,22 +374,67 @@ namespace Resilience.Retry.Tests
             // Assert
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
-                    "Waiting for True", It.IsAny<object>()),
+                    "Waiting for True", It.IsAny<TimeSpan>()),
                 Times.Exactly(retriesTillSuccess));
+        }
+        
+        [TestCase(2,1)]
+        [TestCase(3,2)]
+        [TestCase(10,4)]
+        public void Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_True(int retriesTillSuccess, int maxRetries)
+        {
+            // Arrange / Act
+            var exception = Assert.Throws<RetryException>(()=> _sut.UntilTrue("Waiting for True", 
+                () => ReturnOutcome(true, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetries));
+            
+            // Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    "Waiting for True", It.IsAny<TimeSpan>()),
+                Times.Exactly(maxRetries));
+            
+            exception.Message.Should().Be("Waiting for True");
         }
         
         #endregion
         
         #region Tests Retry Until False
         
-        [Test]
-        public void Verify_Successful_Retry_Until_False()
+        [TestCase(3,5)]
+        [TestCase(2,4)]
+        [TestCase(1,1)]
+        public void Verify_Successful_Retry_Until_False(int retriesTillSuccess, int maxRetries)
         {
-            // Arrange
-            
-            // Act
+            // Arrange / Act
+            Assert.DoesNotThrow(()=> _sut.UntilFalse("Waiting for False", 
+                () => ReturnOutcome(false, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetries));
             
             // Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    "Waiting for False", It.IsAny<TimeSpan>()),
+                Times.Exactly(retriesTillSuccess));
+        }
+        
+        [TestCase(2,1)]
+        [TestCase(3,2)]
+        [TestCase(10,4)]
+        public void Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_False(int retriesTillSuccess, int maxRetries)
+        {
+            // Arrange / Act
+            var exception = Assert.Throws<RetryException>(()=> _sut.UntilFalse("Waiting for False", 
+                () => ReturnOutcome(false, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetries));
+            
+            // Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    "Waiting for False", It.IsAny<TimeSpan>()),
+                Times.Exactly(maxRetries));
+            
+            exception.Message.Should().Be("Waiting for False");
         }
         
         #endregion
