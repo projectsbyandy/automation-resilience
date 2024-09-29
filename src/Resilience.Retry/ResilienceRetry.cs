@@ -50,7 +50,7 @@ namespace Resilience.Retry
         public void UntilFalse(string retryMessage, Func<bool> func, TimeSpan wait, int retries)
             => PerformBooleanRetry(false, retryMessage, func, wait, retries);
     
-        public async Task UntilTrueFalse(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
+        public async Task UntilFalseAsync(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
             => await PerformBooleanRetryAsync(false, retryMessage, func, wait, retries);
         
         private void PerformBooleanRetry(bool expectedOutcome, string retryMessage, Func<bool> func, TimeSpan timeSpan, int retries)
@@ -67,11 +67,13 @@ namespace Resilience.Retry
         
         private async Task PerformBooleanRetryAsync(bool expectedOutcome, string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
         {
-            var actualOutcome = await CreateAsyncPolicy(wait, retries)
-                .ExecuteAsync(func.Invoke);
+            await PerformAsync(async () =>
+            {
+                var outcome = await func.Invoke();
 
-            if (actualOutcome != expectedOutcome)
-                throw new RetryException(retryMessage);
+                if (outcome != expectedOutcome)
+                    throw new RetryException(retryMessage);
+            }, wait, retries);
         }
         
         private AsyncRetryPolicy CreateAsyncPolicy(TimeSpan wait, int retries)

@@ -96,7 +96,7 @@ namespace Resilience.Retry.Tests
             {
                 _sut.Perform(() =>
                         VerifyTestResultList(testResults, _retryAttempts),
-                    TimeSpan.FromMilliseconds(10),
+                    TimeSpan.FromMilliseconds(1),
                     3);
             });
 
@@ -134,7 +134,7 @@ namespace Resilience.Retry.Tests
             var exception = Assert.Throws<ArgumentException>(() =>
             {
                 _sut.Perform(ProcessThatDoesNotThrowRetry,
-                    TimeSpan.FromMilliseconds(10),
+                    TimeSpan.FromMilliseconds(1),
                     3);
             });
 
@@ -206,7 +206,7 @@ namespace Resilience.Retry.Tests
             {
                 await _sut.PerformAsync(async () =>
                         await VerifyTestResultListAsync(testResults, _retryAttempts, retriesTillSuccess),
-                    TimeSpan.FromMilliseconds(100),
+                    TimeSpan.FromMilliseconds(1),
                     retries);
             });
 
@@ -292,7 +292,7 @@ namespace Resilience.Retry.Tests
             // Act
             var ingested = _sut.PerformWithReturn(
                 () => ReturnOutcomeWithRetryException(_retryAttempts, retriesTillSuccess),
-                TimeSpan.FromMilliseconds(10), maxRetriedBeforeFailure);
+                TimeSpan.FromMilliseconds(1), maxRetriedBeforeFailure);
 
             // Assert
             ingested.Should().BeTrue("Ingestion is successful");
@@ -441,28 +441,80 @@ namespace Resilience.Retry.Tests
         
         #region Tests Retry Until True Async
 
-        [Test]
-        public void Verify_Successful_Retry_Until_True_Async()
+        [TestCase(3,5)]
+        [TestCase(2,4)]
+        [TestCase(1,1)]
+        public void Verify_Successful_Retry_Until_True_Async(int retriesTillSuccess, int maxRetries)
         {
-            // Arrange
-            
-            // Act
+            // Arrange / Act
+            Assert.DoesNotThrowAsync(()=> _sut.UntilTrueAsync("Waiting for True Async", 
+                () => ReturnOutcomeAsync(true, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetries));
             
             // Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    "Waiting for True Async", It.IsAny<TimeSpan>()),
+                Times.Exactly(retriesTillSuccess));
+        }
+        
+        [TestCase(2,1)]
+        [TestCase(3,2)]
+        [TestCase(10,4)]
+        public void Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_True_Async(int retriesTillSuccess, int maxRetries)
+        {
+            // Arrange / Act
+            var exception = Assert.ThrowsAsync<RetryException>(()=> _sut.UntilTrueAsync("Waiting for True Async", 
+                () => ReturnOutcomeAsync(true, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetries));
+            
+            // Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    "Waiting for True Async", It.IsAny<TimeSpan>()),
+                Times.Exactly(maxRetries));
+            
+            exception.Message.Should().Be("Waiting for True Async");
         }
         
         #endregion
         
         #region Tests Retry Until False Async
-        
-        [Test]
-        public void Verify_Successful_Retry_Until_False_Async()
+
+        [TestCase(3,5)]
+        [TestCase(2,4)]
+        [TestCase(1,1)]
+        public void Verify_Successful_Retry_Until_False_Async(int retriesTillSuccess, int maxRetries)
         {
-            // Arrange
-            
-            // Act
+            // Arrange / Act
+            Assert.DoesNotThrowAsync(()=> _sut.UntilFalseAsync("Waiting for False Async", 
+                () => ReturnOutcomeAsync(false, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetries));
             
             // Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    "Waiting for False Async", It.IsAny<TimeSpan>()),
+                Times.Exactly(retriesTillSuccess));
+        }
+        
+        [TestCase(2,1)]
+        [TestCase(3,2)]
+        [TestCase(10,4)]
+        public void Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_False_Async(int retriesTillSuccess, int maxRetries)
+        {
+            // Arrange / Act
+            var exception = Assert.ThrowsAsync<RetryException>(()=> _sut.UntilFalseAsync("Waiting for False Async", 
+                () => ReturnOutcomeAsync(false, _retryAttempts, retriesTillSuccess),
+                TimeSpan.FromMilliseconds(1), maxRetries));
+            
+            // Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    "Waiting for False Async", It.IsAny<TimeSpan>()),
+                Times.Exactly(maxRetries));
+            
+            exception.Message.Should().Be("Waiting for False Async");
         }
         
         #endregion
@@ -514,7 +566,7 @@ namespace Resilience.Retry.Tests
 
         private async Task<bool> ReturnOutcomeWithRetryExceptionAsync(bool expectedOutcome, int retryAttempt, int numberOfRetriesTillSuccess)
         {
-            return ReturnOutcome(true, retryAttempt, numberOfRetriesTillSuccess) is false
+            return await ReturnOutcomeAsync(true, retryAttempt, numberOfRetriesTillSuccess) is false
                 ? throw new RetryException("Problem with Ingestion Async Retrying")
                 : await Task.FromResult(expectedOutcome);
         }
@@ -526,6 +578,11 @@ namespace Resilience.Retry.Tests
             
             _retryAttempts++;
             return !expectedOutcome;
+        }
+        
+        private async Task<bool> ReturnOutcomeAsync(bool expectedOutcome, int retryAttempt, int numberOfRetriesTillSuccess)
+        {
+            return await Task.FromResult(ReturnOutcome(expectedOutcome, retryAttempt, numberOfRetriesTillSuccess));
         }
 
         #endregion

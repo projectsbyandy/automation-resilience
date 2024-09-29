@@ -9,6 +9,6 @@ namespace Resilience.Retry
         public void UntilTrue(string retryMessage, Func<bool> func, TimeSpan wait, int retries);
         public Task UntilTrueAsync(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries);
         public void UntilFalse(string retryMessage, Func<bool> func, TimeSpan wait, int retries);
-        public Task UntilTrueFalse(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries);
+        public Task UntilFalseAsync(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries);
     }
 }
