@@ -231,7 +231,7 @@ namespace Resilience.Retry.Tests
                     3);
             });
 
-            exception?.Message.Should().Be("Located 'retry' in list Retrying");
+            exception?.Message.Should().Be("Located 'retry' in list");
         }
 
         [TestCase(10, 10)]
@@ -282,14 +282,12 @@ namespace Resilience.Retry.Tests
 
         #region Tests for Return Retry
 
-        [Test]
-        public void Retry_Return_Is_Successful_After_Retrying()
+        [TestCase(6,10)]
+        [TestCase(2,5)]
+        [TestCase(1,3)]
+        public void Retry_Return_Is_Successful_After_Retrying(int retriesTillSuccess, int maxRetriedBeforeFailure)
         {
-            // Arrange
-            const int retriesTillSuccess = 2;
-            const int maxRetriedBeforeFailure = 3;
-
-            // Act
+            // Arrange / Act
             var ingested = _sut.PerformWithReturn(
                 () => ReturnOutcomeWithRetryException(_retryAttempts, retriesTillSuccess),
                 TimeSpan.FromMilliseconds(1), maxRetriedBeforeFailure);
@@ -303,18 +301,22 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(retriesTillSuccess));
         }
 
-        [Test]
-        public void Retry_Return_RetryException_Raised_On_Failure()
+        [TestCase(4,3)]
+        [TestCase(6,3)]
+        [TestCase(2,1)]
+        public void Retry_Return_RetryException_Raised_On_Failure(int retriesTillSuccess, int maxRetriedBeforeFailure)
         {
             // Arrange
-            const int retriesTillSuccess = 4;
-            const int maxRetriedBeforeFailure = 3;
-
-            // Act / Assert
             var exception = Assert.Throws<RetryException>(() => _sut.PerformWithReturn(
                 () => ReturnOutcomeWithRetryException(_retryAttempts, retriesTillSuccess),
                 TimeSpan.FromMilliseconds(1), maxRetriedBeforeFailure));
 
+            // Act / Assert
+            _loggerMock.Verify(x => x.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}",
+                    It.IsAny<string>(), It.IsAny<TimeSpan>()),
+                Times.Exactly(maxRetriedBeforeFailure));
+            
             exception?.Message.Should().Be("Problem with Ingestion Retrying");
         }
 
@@ -545,7 +547,8 @@ namespace Resilience.Retry.Tests
             {
                 _retryAttempts++;
                 await Task.FromResult(false);
-                throw new RetryException("Located 'retry' in list Retrying");
+                
+                throw new RetryException("Located 'retry' in list");
             }
         }
 
