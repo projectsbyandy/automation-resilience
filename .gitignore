@@ -401,3 +401,5 @@ FodyWeavers.xsd
 
 # Test files
 *.feature.cs
+
+.idea/
