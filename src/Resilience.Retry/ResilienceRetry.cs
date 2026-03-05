@@ -13,21 +13,21 @@ namespace Resilience.Retry
             _logger = logger;
         }
         
-        public void Perform(Action action, TimeSpan wait, int retries)
+        public void Perform(Action action, Action<RetryOptions>? options = null)
         {
-            CreatePolicy(wait, retries)
+            CreatePolicy(options)
                 .Execute(action.Invoke);    
         }
     
-        public async Task PerformAsync(Func<Task> func, TimeSpan wait, int retries)
+        public async Task PerformAsync(Func<Task> func, Action<RetryOptions>? options = null)
         {
-            await CreateAsyncPolicy(wait, retries)
+            await CreateAsyncPolicy(options)
                 .ExecuteAsync(func.Invoke);
         }
 
-        public T PerformWithReturn<T>(Func<T> func, TimeSpan wait, int retries)
+        public T PerformWithReturn<T>(Func<T> func, Action<RetryOptions>? options = null)
         {
-            var execution = CreatePolicy(wait, retries)
+            var execution = CreatePolicy(options)
                 .ExecuteAndCapture(func.Invoke);
 
             return execution.FinalException is null
@@ -35,25 +35,25 @@ namespace Resilience.Retry
                 : throw new RetryException(execution.FinalException.Message);
         }
 
-        public async Task<T> PerformWithReturnAsync<T>(Func<Task<T>> func, TimeSpan wait, int retries)
+        public async Task<T> PerformWithReturnAsync<T>(Func<Task<T>> func, Action<RetryOptions>? options = null)
         {
-            return await CreateAsyncPolicy(wait, retries)
+            return await CreateAsyncPolicy(options)
                 .ExecuteAsync(func.Invoke);
         }
 
-        public void UntilTrue(string retryMessage, Func<bool> func, TimeSpan wait, int retries)
-            => PerformBooleanRetry(true, retryMessage, func, wait, retries);
+        public void UntilTrue(string retryMessage, Func<bool> func, Action<RetryOptions>? options = null)
+            => PerformBooleanRetry(true, retryMessage, func, options);
         
-        public async Task UntilTrueAsync(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
-            => await PerformBooleanRetryAsync(true, retryMessage, func, wait, retries);
+        public async Task UntilTrueAsync(string retryMessage, Func<Task<bool>> func, Action<RetryOptions>? options = null)
+            => await PerformBooleanRetryAsync(true, retryMessage, func, options);
         
-        public void UntilFalse(string retryMessage, Func<bool> func, TimeSpan wait, int retries)
-            => PerformBooleanRetry(false, retryMessage, func, wait, retries);
+        public void UntilFalse(string retryMessage, Func<bool> func, Action<RetryOptions>? options = null)
+            => PerformBooleanRetry(false, retryMessage, func, options);
     
-        public async Task UntilFalseAsync(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
-            => await PerformBooleanRetryAsync(false, retryMessage, func, wait, retries);
+        public async Task UntilFalseAsync(string retryMessage, Func<Task<bool>> func, Action<RetryOptions>? options = null)
+            => await PerformBooleanRetryAsync(false, retryMessage, func, options);
         
-        private void PerformBooleanRetry(bool expectedOutcome, string retryMessage, Func<bool> func, TimeSpan timeSpan, int retries)
+        private void PerformBooleanRetry(bool expectedOutcome, string retryMessage, Func<bool> func, Action<RetryOptions>? options = null)
         {
             Perform(() =>
             {
@@ -62,10 +62,10 @@ namespace Resilience.Retry
                     return;
 
                 throw new RetryException(retryMessage);
-            }, timeSpan, retries);
+            }, options);
         }
         
-        private async Task PerformBooleanRetryAsync(bool expectedOutcome, string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries)
+        private async Task PerformBooleanRetryAsync(bool expectedOutcome, string retryMessage, Func<Task<bool>> func, Action<RetryOptions>? options = null)
         {
             await PerformAsync(async () =>
             {
@@ -73,37 +73,46 @@ namespace Resilience.Retry
 
                 if (outcome != expectedOutcome)
                     throw new RetryException(retryMessage);
-            }, wait, retries);
+            }, options);
         }
         
-        private AsyncRetryPolicy CreateAsyncPolicy(TimeSpan wait, int retries)
+        private AsyncRetryPolicy CreateAsyncPolicy(Action<RetryOptions>? configure)
         {
-            if (retries <=0)
-                throw new ArgumentException("Retry count should be greater than zero");
+            var options = ProcessOptions(configure);
             
             return Policy
                 .Handle<RetryException>()
-                .WaitAndRetryAsync(retries,
-                    _ => wait,
-                    (exception, _, _, _) => OnRetry(exception));
+                .WaitAndRetryAsync(options.Retries,
+                    _ => options.Delay,
+                    (exception, _, _, _) => OnRetry(exception, options.LogRetries));
         }
     
-        private Policy CreatePolicy(TimeSpan wait, int retries)
+        private Policy CreatePolicy(Action<RetryOptions>? configure)
         {
-            if (retries <=0)
-                throw new ArgumentException("Retry count should be greater than zero");
+            var options = ProcessOptions(configure);
             
             return Policy
                 .Handle<RetryException>()
-                .WaitAndRetry(retries,
-                    _ => wait,
-                    onRetry: (exception, _, _) =>OnRetry(exception));
+                .WaitAndRetry(options.Retries,
+                    _ => options.Delay,
+                    onRetry: (exception, _, _) => OnRetry(exception, options.LogRetries));
         }
 
-        private void OnRetry(Exception exception)
+        private RetryOptions ProcessOptions(Action<RetryOptions>? configure)
         {
-            _logger.Warning(
-                "Retrying due to: {@Message} at {@DateTime}", exception.Message, DateTime.Now.TimeOfDay);
+            var options = new RetryOptions();
+            configure?.Invoke(options);
+            
+            options.Validate();
+
+            return options;
+        }
+
+        private void OnRetry(Exception exception, bool logRetries)
+        { 
+            if (logRetries)
+                _logger.Warning(
+                    "Retrying due to: {@Message} at {@DateTime}", exception.Message, DateTime.Now.TimeOfDay);
         }
     }
 }

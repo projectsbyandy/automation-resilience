@@ -5,8 +5,7 @@ namespace Resilience.Retry
         /// <summary>
         /// Retries the specified action until a <c>RetryException</c> is not raised or the retries count is exceeded.
         /// <param name="action">code to retry.</param>
-        /// <param name="wait">time to wait between retries.</param>
-        /// <param name="retries">times to retry before failure.</param>
+        /// <param name="options">retry options e.g. delay, number of retries. Default: Delay - 1sec Retries - 5 (Optional)</param>
         /// <example>
         /// For example: Deleting all emails
         /// <code>
@@ -17,18 +16,22 @@ namespace Resilience.Retry
         ///     var count = homeDashboard.RetrieveEmails().Count();
         ///     if (count is not 0)
         ///         throw new RetryException("Email count is not 0")
-        /// }, TimeSpan.FromSeconds(1), 10);
+        /// }, o =>
+        /// {
+        ///    o.Delay = TimeSpan.FromSeconds(1);
+        ///    o.Retries = 3;
+        ///    o.LogRetries = true;
+        /// });
         /// </code>
         /// A <c>RetryException</c> is thrown if a condition is not satisfied, this will trigger a retry if the <c>retries</c> count has not been exceeded
         /// </example>
         /// </summary>
-        void Perform(Action action, TimeSpan wait, int retries);
+        void Perform(Action action, Action<RetryOptions>? options = null);
         
         /// <summary>
         /// Retries the specified asynchronous action until a <c>RetryException</c> is not raised or the retries count is exceeded.
         /// <param name="func">code to retry.</param>
-        /// <param name="wait">time to wait between retries.</param>
-        /// <param name="retries">times to retry before failure.</param>
+        /// <param name="options">retry options e.g. delay, number of retries. Default: Delay - 1sec Retries - 5 (Optional)</param>
         /// <example>
         /// For example: Deleting all emails
         /// <code>
@@ -39,19 +42,23 @@ namespace Resilience.Retry
         ///     var count = (await homeDashboard.RetrieveEmailsAsync()).Count();
         ///     if (count is not 0)
         ///         throw new RetryException("Email count is not 0")
-        /// }, TimeSpan.FromSeconds(1), 10);
+        /// }, o =>
+        /// {
+        ///    o.Delay = TimeSpan.FromSeconds(1);
+        ///    o.Retries = 3;
+        ///    o.LogRetries = true;
+        /// });
         /// </code>
         /// A <c>RetryException</c> is thrown if a condition is not satisfied, this will trigger a retry if the <c>retries</c> count has not been exceeded
         /// </example>
         /// </summary>
-        Task PerformAsync(Func<Task> func, TimeSpan wait, int retries);
-        
+        Task PerformAsync(Func<Task> func, Action<RetryOptions>? options = null);
+
         /// <summary>
         /// Retries the specified Func and returns
         /// <typeparam name="T">Returns - type from the Func</typeparam>
         /// <param name="func">code to retry.</param>
-        /// <param name="wait">time to wait between retries.</param>
-        /// <param name="retries">times to retry before failure.</param>
+        /// <param name="options">retry options e.g. delay, number of retries. Default: Delay - 1sec Retries - 5 (Optional)</param>
         /// </summary>
         /// <example>
         /// For example: Wait for back end Email Creation request to complete
@@ -65,19 +72,23 @@ namespace Resilience.Retry
         ///         throw new RetryException("Expecting email count of 10")
         ///
         ///     return emails;
-        /// }, TimeSpan.FromSeconds(1), 10);
+        /// }, o =>
+        /// {
+        ///    o.Delay = TimeSpan.FromSeconds(1);
+        ///    o.Retries = 3;
+        ///    o.LogRetries = true;
+        /// });
         /// </code>
         /// A <c>RetryException</c> is thrown if a condition is not satisfied, this will trigger a retry if the <c>retries</c> count has not been exceeded
         /// </example>
 
-        T PerformWithReturn<T>(Func<T> func, TimeSpan wait, int retries);
+        T PerformWithReturn<T>(Func<T> func, Action<RetryOptions>? options = null);
         
         /// <summary>
         /// Retries the specified asynchronous Func and returns
         /// <typeparam name="T">Returns - type from the Func</typeparam>
         /// <param name="func">code to retry.</param>
-        /// <param name="wait">time to wait between retries.</param>
-        /// <param name="retries">times to retry before failure.</param>
+        /// <param name="options">retry options e.g. delay, number of retries. Default: Delay - 1sec Retries - 5 (Optional)</param>
         /// </summary>
         /// <example>
         /// For example: Wait for back end Email Creation request to complete
@@ -91,17 +102,21 @@ namespace Resilience.Retry
         ///         throw new RetryException("Expecting email count of 10")
         ///
         ///     return emails;
-        /// }, TimeSpan.FromSeconds(1), 10);
+        /// }, o =>
+        /// {
+        ///    o.Delay = TimeSpan.FromSeconds(1);
+        ///    o.Retries = 3;
+        ///    o.LogRetries = true;
+        /// });
         /// </code>
         /// A <c>RetryException</c> is thrown if a condition is not satisfied, this will trigger a retry if the <c>retries</c> count has not been exceeded
         /// </example>
-        Task<T> PerformWithReturnAsync<T>(Func<Task<T>> func, TimeSpan wait, int retries);
+        Task<T> PerformWithReturnAsync<T>(Func<Task<T>> func, Action<RetryOptions>? options = null);
         
         /// <summary>
         /// Retries the specified Func until the outcome is True
         /// <param name="func">code to retry.</param>
-        /// <param name="wait">time to wait between retries.</param>
-        /// <param name="retries">times to retry before failure.</param>
+        /// <param name="options">retry options e.g. delay, number of retries. Default: Delay - 1sec Retries - 5 (Optional)</param>
         /// </summary>
         /// <example>
         /// For example: Wait for a batch job to finish processing a report generation request
@@ -109,17 +124,21 @@ namespace Resilience.Retry
         /// _reportManager.GenerateForId(81181);
         /// _resilienceRetry.UntilTrue("Waiting for report to be Generated",
         ///     () => reportManager.IsReportGenerated(81181),
-        ///     TimeSpan.FromSeconds(1), 10);
+        ///     o =>
+        ///     {
+        ///         o.Delay = TimeSpan.FromSeconds(1);
+        ///         o.Retries = 3;
+        ///         o.LogRetries = true;
+        ///     });
         /// </code>
         /// A <c>RetryException</c> is thrown if a condition is not satisfied, this will trigger a retry if the <c>retries</c> count has not been exceeded
         /// </example>
-        public void UntilTrue(string retryMessage, Func<bool> func, TimeSpan wait, int retries);
+        public void UntilTrue(string retryMessage, Func<bool> func, Action<RetryOptions>? options = null);
         
         /// <summary>
         /// Retries the specified asynchronous Func until the outcome is True
         /// <param name="func">code to retry.</param>
-        /// <param name="wait">time to wait between retries.</param>
-        /// <param name="retries">times to retry before failure.</param>
+        /// <param name="options">retry options e.g. delay, number of retries. Default: Delay - 1sec Retries - 5 (Optional)</param>
         /// </summary>
         /// <example>
         /// For example: Wait for a batch job to finish processing a report generation request
@@ -127,17 +146,21 @@ namespace Resilience.Retry
         /// await _reportManager.GenerateForIdAsync(81181);
         /// await _resilienceRetry.UntilTrueAsync("Waiting for report to be Generated",
         ///     async () => await reportManager.IsReportGeneratedAsync(81181),
-        ///     TimeSpan.FromSeconds(1), 10);
+        ///     o =>
+        ///     {
+        ///         o.Delay = TimeSpan.FromSeconds(1);
+        ///         o.Retries = 3;
+        ///         o.LogRetries = true;
+        ///     });
         /// </code>
         /// A <c>RetryException</c> is thrown if a condition is not satisfied, this will trigger a retry if the <c>retries</c> count has not been exceeded
         /// </example>
-        public Task UntilTrueAsync(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries);
+        public Task UntilTrueAsync(string retryMessage, Func<Task<bool>> func, Action<RetryOptions>? options = null);
         
         /// <summary>
         /// Retries the specified Func until the outcome is False
         /// <param name="func">code to retry.</param>
-        /// <param name="wait">time to wait between retries.</param>
-        /// <param name="retries">times to retry before failure.</param>
+        /// <param name="options">retry options e.g. delay, number of retries. Default: Delay - 1sec Retries - 5 (Optional)</param>
         /// </summary>
         /// <example>
         /// For example: Wait for a report to be deleted
@@ -145,17 +168,21 @@ namespace Resilience.Retry
         /// _reportManager.DeleteId(81181);
         /// _resilienceRetry.UntilFalse("Waiting for report to be Deleted",
         ///     () => reportManager.IsDeleted(81181),
-        ///     TimeSpan.FromSeconds(1), 10);
+        ///     o =>
+        ///     {
+        ///         o.Delay = TimeSpan.FromSeconds(1);
+        ///         o.Retries = 3;
+        ///         o.LogRetries = true;
+        ///     });
         /// </code>
         /// A <c>RetryException</c> is thrown if a condition is not satisfied, this will trigger a retry if the <c>retries</c> count has not been exceeded
         /// </example>
-        public void UntilFalse(string retryMessage, Func<bool> func, TimeSpan wait, int retries);
+        public void UntilFalse(string retryMessage, Func<bool> func, Action<RetryOptions>? options = null);
         
         /// <summary>
         /// Retries the specified asynchronous Func until the outcome is False
         /// <param name="func">code to retry.</param>
-        /// <param name="wait">time to wait between retries.</param>
-        /// <param name="retries">times to retry before failure.</param>
+        /// <param name="options">retry options e.g. delay, number of retries. Default: Delay - 1sec Retries - 5 (Optional)</param>
         /// </summary>
         /// <example>
         /// For example: Wait for a report to be deleted
@@ -163,10 +190,15 @@ namespace Resilience.Retry
         /// await _reportManager.DeleteIdAsync(81181);
         /// await _resilienceRetry.UntilFalseAsync("Waiting for report to be Deleted",
         ///     () => reportManager.IsDeleted(81181),
-        ///     TimeSpan.FromSeconds(1), 10);
+        ///     o =>
+        ///     {
+        ///         o.Delay = TimeSpan.FromSeconds(1);
+        ///         o.Retries = 3;
+        ///         o.LogRetries = true;
+        ///     });
         /// </code>
         /// A <c>RetryException</c> is thrown if a condition is not satisfied, this will trigger a retry if the <c>retries</c> count has not been exceeded
         /// </example>
-        public Task UntilFalseAsync(string retryMessage, Func<Task<bool>> func, TimeSpan wait, int retries);
+        public Task UntilFalseAsync(string retryMessage, Func<Task<bool>> func, Action<RetryOptions>? options = null);
     }
 }
