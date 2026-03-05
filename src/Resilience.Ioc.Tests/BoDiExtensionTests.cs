@@ -1,25 +1,18 @@
 ﻿using BoDi;
 using FluentAssertions;
 using Moq;
-using NUnit.Framework;
 using Resilience.Retry;
 using Serilog;
+using Xunit;
 
 namespace Resilience.Ioc.Tests;
 
-internal class BoDiExtensionTests
+public class BoDiExtensionTests : IDisposable
 {
-    private IObjectContainer? _container;
-    private Mock<ILogger>? _loggerMock;
-    
-    [SetUp]
-    public void Setup()
-    {
-        _container = new ObjectContainer();
-        _loggerMock = new Mock<ILogger>();
-    }
-    
-    [Test]
+    private readonly IObjectContainer? _container = new ObjectContainer();
+    private readonly Mock<ILogger>? _loggerMock = new();
+
+    [Fact]
     public void Verify_Default_Resilience_Extension_Can_Be_Registered()
     {
         // Arrange / Act
@@ -29,7 +22,7 @@ internal class BoDiExtensionTests
         _container?.Resolve<IResilienceRetry>().Should().NotBeNull();
     }
     
-    [Test]
+    [Fact]
     public void Verify_Logging_Is_Added_With_Default_Resilience_Extension()
     {
         // Arrange / Act
@@ -39,7 +32,7 @@ internal class BoDiExtensionTests
         _container?.Resolve<ILogger>().Should().NotBeNull();
     }
     
-    [Test]
+    [Fact]
     public void Verify_Resolving_IResilienceRetry_With_No_Logger_Throws_Exception()
     {
         // Arrange / Act
@@ -50,7 +43,7 @@ internal class BoDiExtensionTests
         exception?.Message.Should().Be("Interface cannot be resolved: Serilog.ILogger (resolution path: Resilience.Retry.ResilienceRetry)");
     }
     
-    [Test]
+    [Fact]
     public void Verify_Resolving_IResilienceRetry_With_Manually_Created_Logger()
     {
         // Arrange
@@ -62,9 +55,8 @@ internal class BoDiExtensionTests
         // Assert
         _container?.Resolve<IResilienceRetry>().Should().NotBeNull();
     }
-
-    [TearDown]
-    public void Teardown()
+    
+    public void Dispose()
     {
         _container?.Dispose();
     }

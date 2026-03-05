@@ -1,78 +1,74 @@
 using FluentAssertions;
 using Moq;
 using Serilog;
+using Xunit;
 
 namespace Resilience.Retry.Tests
 {
-    internal class SynchronizationTests
+    public class SynchronizationTests
     {
-        private IResilienceRetry _sut;
-        private Mock<ILogger> _loggerMock;
+        private readonly IResilienceRetry _sut;
+        private readonly Mock<ILogger> _loggerMock = new();
         private int _retryAttempts;
 
-        [SetUp]
-        public void Setup()
+        public SynchronizationTests()
         {
-            _loggerMock = new Mock<ILogger>();
             _sut = new ResilienceRetry(_loggerMock.Object);
             _retryAttempts = 0;
         }
 
         #region Tests for Void Retry
 
-        [Test]
+        [Fact]
         public void Retry_Void_Does_Not_Throw_RetryException_On_Success()
         {
             // Arrange
             var testResults = new List<string>() { "pass", "fail" };
 
-            // Act / Assert
-            Assert.DoesNotThrow(() =>
-            {
-                _sut.Perform(() =>
-                        VerifyTestResultList(testResults, _retryAttempts),
-                    o =>
-                    {
-                        o.Delay = TimeSpan.FromSeconds(1);
-                        o.Retries = 3;
-                        o.LogRetries = true;
-                    });
-            });
+            // Act
+            _sut.Perform(() =>
+                    VerifyTestResultList(testResults, _retryAttempts),
+                o =>
+                {
+                    o.Delay = TimeSpan.FromSeconds(1);
+                    o.Retries = 3;
+                    o.LogRetries = true;
+                });
 
+            // Assert
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
                     It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Never);
         }
 
-        [TestCase(1, 2)]
-        [TestCase(2, 3)]
-        [TestCase(5, 6)]
+        [Theory]
+        [InlineData(1, 2)]
+        [InlineData(2, 3)]
+        [InlineData(5, 6)]
         public void Retry_Void_Is_Successful_After_Retrying(int retriesTillSuccess, int retries)
         {
             // Arrange
             var testResults = new List<string>() { "pass", "fail", "retry" };
 
-            // Act / Assert
-            Assert.DoesNotThrow(() =>
-            {
-                _sut.Perform(() =>
-                        VerifyTestResultList(testResults, _retryAttempts, retriesTillSuccess),
-                    o =>
-                    {
-                        o.Delay = TimeSpan.FromMilliseconds(1);
-                        o.Retries = retries;
-                        o.LogRetries = true;
-                    });
-            });
+            // Act
+            _sut.Perform(() =>
+                    VerifyTestResultList(testResults, _retryAttempts, retriesTillSuccess),
+                o =>
+                {
+                    o.Delay = TimeSpan.FromMilliseconds(1);
+                    o.Retries = retries;
+                    o.LogRetries = true;
+                });
 
+            // Assert
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
                     It.IsAny<string>(), It.IsAny<TimeSpan>()),
                 Times.Exactly(retriesTillSuccess));
         }
 
-        [Test]
+        [Fact]
         public void Retry_Void_Throws_Retry_Exception_After_Retry_Exhausted()
         {
             // Arrange
@@ -93,9 +89,10 @@ namespace Resilience.Retry.Tests
             exception?.Message.Should().Be("Located 'retry' in list Retrying");
         }
 
-        [TestCase(10, 10)]
-        [TestCase(5, 5)]
-        [TestCase(2, 2)]
+        [Theory]
+        [InlineData(10, 10)]
+        [InlineData(5, 5)]
+        [InlineData(2, 2)]
         public void Retry_Void_Number_Of_Retries_Are_Logged(int retriesToThrow, int expectedNumberOfLogEntries)
         {
             // Arrange
@@ -120,7 +117,7 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(expectedNumberOfLogEntries));
         }
 
-        [Test]
+        [Fact]
         public void Retry_Void_Does_Not_Retry_If_Non_RetryException_Thrown()
         {
             // Arrange
@@ -147,24 +144,21 @@ namespace Resilience.Retry.Tests
 
         #region Tests for Void Retry Async
 
-        [Test]
-        public void Retry_Void_Async_Does_Not_Throw_RetryException_On_Success()
+        [Fact]
+        public async Task Retry_Void_Async_Does_Not_Throw_RetryException_On_Success()
         {
             // Arrange
             var testResults = new List<string>() { "pass", "fail" };
 
             // Act / Assert
-            Assert.DoesNotThrowAsync(async () =>
-            {
-                await _sut.PerformAsync(async () =>
-                        await VerifyTestResultListAsync(testResults, _retryAttempts),
-                    o =>
-                    {
-                        o.Delay = TimeSpan.FromMilliseconds(1);
-                        o.Retries = 3;
-                        o.LogRetries = true;
-                    });
-            });
+            await _sut.PerformAsync(async () =>
+                    await VerifyTestResultListAsync(testResults, _retryAttempts),
+                o =>
+                {
+                    o.Delay = TimeSpan.FromMilliseconds(1);
+                    o.Retries = 3;
+                    o.LogRetries = true;
+                });
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
@@ -172,26 +166,24 @@ namespace Resilience.Retry.Tests
                 Times.Never);
         }
 
-        [TestCase(1, 2)]
-        [TestCase(2, 3)]
-        [TestCase(5, 6)]
-        public void Retry_Void_Async_Is_Successful_After_Retrying(int retriesTillSuccess, int retries)
+        [Theory]
+        [InlineData(1, 2)]
+        [InlineData(2, 3)]
+        [InlineData(5, 6)]
+        public async Task Retry_Void_Async_Is_Successful_After_Retrying(int retriesTillSuccess, int retries)
         {
             // Arrange
             var testResults = new List<string>() { "pass", "fail", "retry" };
 
             // Act / Assert
-            Assert.DoesNotThrowAsync(async () =>
-            {
-                await _sut.PerformAsync(async () =>
-                        await VerifyTestResultListAsync(testResults, _retryAttempts, retriesTillSuccess),
-                    o =>
-                    {
-                        o.Delay = TimeSpan.FromMilliseconds(1);
-                        o.Retries = retries;
-                        o.LogRetries = true;
-                    });
-            });
+            await _sut.PerformAsync(async () =>
+                    await VerifyTestResultListAsync(testResults, _retryAttempts, retriesTillSuccess),
+                o =>
+                {
+                    o.Delay = TimeSpan.FromMilliseconds(1);
+                    o.Retries = retries;
+                    o.LogRetries = true;
+                });
 
             _loggerMock.Verify(x => x.Warning(
                     "Retrying due to: {@Message} at {@DateTime}",
@@ -199,14 +191,14 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(retriesTillSuccess));
         }
 
-        [Test]
-        public void Retry_Void_Async_Throws_Retry_Exception_After_Retry_Exhausted()
+        [Fact]
+        public async Task Retry_Void_Async_Throws_Retry_Exception_After_Retry_Exhausted()
         {
             // Arrange
             var testResults = new List<string>() { "pass", "fail", "retry" };
 
             // Act / Assert
-            var exception = Assert.ThrowsAsync<RetryException>(async () =>
+            var exception = await Assert.ThrowsAsync<RetryException>(async () =>
             {
                 await _sut.PerformAsync(async () =>
                         await VerifyTestResultListAsync(testResults, _retryAttempts),
@@ -220,16 +212,17 @@ namespace Resilience.Retry.Tests
             exception?.Message.Should().Be("Located 'retry' in list");
         }
 
-        [TestCase(10, 10)]
-        [TestCase(5, 5)]
-        [TestCase(2, 2)]
-        public void Retry_Void_Async_Number_Of_Retries_Are_Logged(int retriesToThrow, int expectedNumberOfLogEntries)
+        [Theory]
+        [InlineData(10, 10)]
+        [InlineData(5, 5)]
+        [InlineData(2, 2)]
+        public async Task Retry_Void_Async_Number_Of_Retries_Are_Logged(int retriesToThrow, int expectedNumberOfLogEntries)
         {
             // Arrange
             var testResults = new List<string>() { "pass", "fail", "retry" };
 
             // Act
-            Assert.ThrowsAsync<RetryException>(async () =>
+            await Assert.ThrowsAsync<RetryException>(async () =>
             {
                 await _sut.PerformAsync(async () =>
                         await VerifyTestResultListAsync(testResults, _retryAttempts),
@@ -248,11 +241,11 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(expectedNumberOfLogEntries));
         }
 
-        [Test]
-        public void Retry_Void_Async_Does_Not_Retry_If_Non_RetryException_Thrown()
+        [Fact]
+        public async Task Retry_Void_Async_Does_Not_Retry_If_Non_RetryException_Thrown()
         {
             // Arrange
-            var exception = Assert.ThrowsAsync<ArgumentException>(async () =>
+            var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 await _sut.PerformAsync(async () => await ProcessThatDoesNotThrowRetryAsync(),
                     o =>
@@ -275,9 +268,10 @@ namespace Resilience.Retry.Tests
 
         #region Tests for Return Retry
 
-        [TestCase(6, 10)]
-        [TestCase(2, 5)]
-        [TestCase(1, 3)]
+        [Theory]
+        [InlineData(6, 10)]
+        [InlineData(2, 5)]
+        [InlineData(1, 3)]
         public void Retry_Return_Is_Successful_After_Retrying(int retriesTillSuccess, int maxRetriedBeforeFailure)
         {
             // Arrange / Act
@@ -299,9 +293,10 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(retriesTillSuccess));
         }
 
-        [TestCase(4, 3)]
-        [TestCase(6, 3)]
-        [TestCase(2, 1)]
+        [Theory]
+        [InlineData(4, 3)]
+        [InlineData(6, 3)]
+        [InlineData(2, 1)]
         public void Retry_Return_RetryException_Raised_On_Failure(int retriesTillSuccess, int maxRetriedBeforeFailure)
         {
             // Arrange
@@ -327,9 +322,10 @@ namespace Resilience.Retry.Tests
 
         #region Tests for Return Async Retry
 
-        [TestCase(2, 3)]
-        [TestCase(1, 2)]
-        [TestCase(3, 4)]
+        [Theory]
+        [InlineData(2, 3)]
+        [InlineData(1, 2)]
+        [InlineData(3, 4)]
         public async Task Retry_ReturnAsync_Successful(int retriesTillSuccess, int maxRetriedBeforeFailure)
         {
             // Arrange / Act
@@ -352,16 +348,17 @@ namespace Resilience.Retry.Tests
             ingested.Should().BeTrue("Ingestion Async is successful");
         }
 
-        [TestCase(3, 2)]
-        [TestCase(6, 4)]
-        [TestCase(4, 3)]
-        public void Retry_ReturnAsync_Test_Failed(int retriesTillSuccess, int maxRetriedBeforeFailure)
+        [Theory]
+        [InlineData(3, 2)]
+        [InlineData(6, 4)]
+        [InlineData(4, 3)]
+        public async Task Retry_ReturnAsync_Test_Failed(int retriesTillSuccess, int maxRetriedBeforeFailure)
         {
             // Arrange
             _retryAttempts = 0;
 
             // Act / Assert
-            var exception = Assert.ThrowsAsync<RetryException>(async () => await _sut.PerformWithReturnAsync(
+            var exception = await Assert.ThrowsAsync<RetryException>(async () => await _sut.PerformWithReturnAsync(
                 async () => await ReturnOutcomeWithRetryExceptionAsync(false, _retryAttempts, retriesTillSuccess),
                 o =>
                 {
@@ -377,20 +374,21 @@ namespace Resilience.Retry.Tests
 
         #region Tests Retry Until True
 
-        [TestCase(3, 5)]
-        [TestCase(2, 4)]
-        [TestCase(1, 1)]
+        [Theory]
+        [InlineData(3, 5)]
+        [InlineData(2, 4)]
+        [InlineData(1, 1)]
         public void Verify_Successful_Retry_Until_True(int retriesTillSuccess, int maxRetries)
         {
             // Arrange / Act
-            Assert.DoesNotThrow(() => _sut.UntilTrue("Waiting for True",
+            _sut.UntilTrue("Waiting for True",
                 () => ReturnOutcome(true, _retryAttempts, retriesTillSuccess),
                 o =>
                 {
                     o.Delay = TimeSpan.FromMilliseconds(1);
                     o.Retries = maxRetries;
                     o.LogRetries = true;
-                }));
+                });
 
             // Assert
             _loggerMock.Verify(x => x.Warning(
@@ -399,9 +397,10 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(retriesTillSuccess));
         }
 
-        [TestCase(2, 1)]
-        [TestCase(3, 2)]
-        [TestCase(10, 4)]
+        [Theory]
+        [InlineData(2, 1)]
+        [InlineData(3, 2)]
+        [InlineData(10, 4)]
         public void Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_True(int retriesTillSuccess, int maxRetries)
         {
             // Arrange / Act
@@ -427,20 +426,21 @@ namespace Resilience.Retry.Tests
 
         #region Tests Retry Until False
 
-        [TestCase(3, 5)]
-        [TestCase(2, 4)]
-        [TestCase(1, 1)]
+        [Theory]
+        [InlineData(3, 5)]
+        [InlineData(2, 4)]
+        [InlineData(1, 1)]
         public void Verify_Successful_Retry_Until_False(int retriesTillSuccess, int maxRetries)
         {
             // Arrange / Act
-            Assert.DoesNotThrow(() => _sut.UntilFalse("Waiting for False",
+            _sut.UntilFalse("Waiting for False",
                 () => ReturnOutcome(false, _retryAttempts, retriesTillSuccess),
                 o =>
                 {
                     o.Delay = TimeSpan.FromMilliseconds(1);
                     o.Retries = maxRetries;
                     o.LogRetries = true;
-                }));
+                });
 
             // Assert
             _loggerMock.Verify(x => x.Warning(
@@ -448,10 +448,11 @@ namespace Resilience.Retry.Tests
                     "Waiting for False", It.IsAny<TimeSpan>()),
                 Times.Exactly(retriesTillSuccess));
         }
-
-        [TestCase(2, 1)]
-        [TestCase(3, 2)]
-        [TestCase(10, 4)]
+        
+        [Theory]
+        [InlineData(2, 1)]
+        [InlineData(3, 2)]
+        [InlineData(10, 4)]
         public void Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_False(int retriesTillSuccess, int maxRetries)
         {
             // Arrange / Act
@@ -476,21 +477,22 @@ namespace Resilience.Retry.Tests
         #endregion
 
         #region Tests Retry Until True Async
-
-        [TestCase(3, 5)]
-        [TestCase(2, 4)]
-        [TestCase(1, 1)]
-        public void Verify_Successful_Retry_Until_True_Async(int retriesTillSuccess, int maxRetries)
+        
+        [Theory]
+        [InlineData(3, 5)]
+        [InlineData(2, 4)]
+        [InlineData(1, 1)]
+        public async Task Verify_Successful_Retry_Until_True_Async(int retriesTillSuccess, int maxRetries)
         {
             // Arrange / Act
-            Assert.DoesNotThrowAsync(() => _sut.UntilTrueAsync("Waiting for True Async",
+            await _sut.UntilTrueAsync("Waiting for True Async",
                 () => ReturnOutcomeAsync(true, _retryAttempts, retriesTillSuccess),
                 o =>
                 {
                     o.Delay = TimeSpan.FromMilliseconds(1);
                     o.Retries = maxRetries;
                     o.LogRetries = true;
-                }));
+                });
 
             // Assert
             _loggerMock.Verify(x => x.Warning(
@@ -499,14 +501,15 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(retriesTillSuccess));
         }
 
-        [TestCase(2, 1)]
-        [TestCase(3, 2)]
-        [TestCase(10, 4)]
-        public void Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_True_Async(int retriesTillSuccess,
+        [Theory]
+        [InlineData(2, 1)]
+        [InlineData(3, 2)]
+        [InlineData(10, 4)]
+        public async Task Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_True_Async(int retriesTillSuccess,
             int maxRetries)
         {
             // Arrange / Act
-            var exception = Assert.ThrowsAsync<RetryException>(() => _sut.UntilTrueAsync("Waiting for True Async",
+            var exception = await Assert.ThrowsAsync<RetryException>(() => _sut.UntilTrueAsync("Waiting for True Async",
                 () => ReturnOutcomeAsync(true, _retryAttempts, retriesTillSuccess),
                 o =>
                 {
@@ -528,20 +531,21 @@ namespace Resilience.Retry.Tests
 
         #region Tests Retry Until False Async
 
-        [TestCase(3, 5)]
-        [TestCase(2, 4)]
-        [TestCase(1, 1)]
-        public void Verify_Successful_Retry_Until_False_Async(int retriesTillSuccess, int maxRetries)
+        [Theory]
+        [InlineData(3, 5)]
+        [InlineData(2, 4)]
+        [InlineData(1, 1)]
+        public async Task Verify_Successful_Retry_Until_False_Async(int retriesTillSuccess, int maxRetries)
         {
             // Arrange / Act
-            Assert.DoesNotThrowAsync(() => _sut.UntilFalseAsync("Waiting for False Async",
+            await _sut.UntilFalseAsync("Waiting for False Async",
                 () => ReturnOutcomeAsync(false, _retryAttempts, retriesTillSuccess),
                 o =>
                 {
                     o.Delay = TimeSpan.FromMilliseconds(1);
                     o.Retries = maxRetries;
                     o.LogRetries = true;
-                }));
+                });
 
             // Assert
             _loggerMock.Verify(x => x.Warning(
@@ -550,14 +554,15 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(retriesTillSuccess));
         }
 
-        [TestCase(2, 1)]
-        [TestCase(3, 2)]
-        [TestCase(10, 4)]
-        public void Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_False_Async(int retriesTillSuccess,
+        [Theory]
+        [InlineData(2, 1)]
+        [InlineData(3, 2)]
+        [InlineData(10, 4)]
+        public async Task Verify_Exception_Thrown_on_Unsuccessful_Retry_Until_False_Async(int retriesTillSuccess,
             int maxRetries)
         {
             // Arrange / Act
-            var exception = Assert.ThrowsAsync<RetryException>(() => _sut.UntilFalseAsync("Waiting for False Async",
+            var exception = await Assert.ThrowsAsync<RetryException>(() => _sut.UntilFalseAsync("Waiting for False Async",
                 () => ReturnOutcomeAsync(false, _retryAttempts, retriesTillSuccess),
                 o =>
                 {
@@ -579,7 +584,7 @@ namespace Resilience.Retry.Tests
 
         #region Retry Options
         
-        [Test]
+        [Fact]
         public void Verify_Default_Retries_Attempts_Option()
         {
             // Arrange
@@ -599,7 +604,7 @@ namespace Resilience.Retry.Tests
                 Times.Exactly(defaultRetries));
         }
         
-        [Test]
+        [Fact]
         public void Verify_Default_RetryLogging_Option_Disabled()
         {
             // Arrange

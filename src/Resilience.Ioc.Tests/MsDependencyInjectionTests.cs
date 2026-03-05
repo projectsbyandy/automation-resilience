@@ -1,27 +1,19 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using NUnit.Framework;
 using Resilience.Retry;
 using Serilog;
+using Xunit;
 
 namespace Resilience.Ioc.Tests;
 
-internal class MsDependencyInjectionTests
+public class MsDependencyInjectionTests : IDisposable
 {
-    
-    private Mock<ILogger>? _loggerMock;
-    private IServiceCollection? _serviceCollection;
+    private readonly Mock<ILogger>? _loggerMock = new();
+    private readonly IServiceCollection? _serviceCollection = new ServiceCollection();
     private IServiceProvider? _serviceProvider;
-    
-    [SetUp]
-    public void Setup()
-    {
-        _loggerMock = new Mock<ILogger>();
-        _serviceCollection = new ServiceCollection();
-    }
 
-    [Test]
+    [Fact]
     public void Verify_Default_Resilience_Extension_Can_Be_Registered()
     {
         // Arrange
@@ -34,7 +26,7 @@ internal class MsDependencyInjectionTests
         _serviceProvider?.GetService<IResilienceRetry>().Should().NotBeNull();
     }
 
-    [Test]
+    [Fact]
     public void Verify_Resilience_Extension_Can_Be_Registered_As_Scoped()
     {
         // Arrange
@@ -44,22 +36,18 @@ internal class MsDependencyInjectionTests
         _serviceProvider = _serviceCollection?.BuildServiceProvider();
         
         // Assert
-        using (var scope1 = _serviceProvider?.CreateScope())
-        {
-            var resilienceRetry1 = scope1?.ServiceProvider.GetService<IResilienceRetry>();
-            using (var scope2 = _serviceProvider?.CreateScope())
-            {
-                var resilienceRetry2 = scope2?.ServiceProvider.GetService<IResilienceRetry>();
+        using var scope1 = _serviceProvider?.CreateScope();
+        var resilienceRetry1 = scope1?.ServiceProvider.GetService<IResilienceRetry>();
+        using var scope2 = _serviceProvider?.CreateScope();
+        var resilienceRetry2 = scope2?.ServiceProvider.GetService<IResilienceRetry>();
 
-                // Assert
-                resilienceRetry1.Should().NotBeNull();
-                resilienceRetry2.Should().NotBeNull();
-                resilienceRetry1.Should().NotBe(resilienceRetry2);
-            }
-        }
+        // Assert
+        resilienceRetry1.Should().NotBeNull();
+        resilienceRetry2.Should().NotBeNull();
+        resilienceRetry1.Should().NotBe(resilienceRetry2);
     }
 
-    [Test]
+    [Fact]
     public void Verify_Resilience_Extension_Can_Be_Registered_As_Singleton()
     {
         // Arrange
@@ -78,7 +66,7 @@ internal class MsDependencyInjectionTests
         resilienceRetry1.Should().Be(resilienceRetry2);
     }
 
-    [Test]
+    [Fact]
     public void Verify_Logging_Is_Added_With_Default_Resilience_Extension()
     {
         // Arrange
@@ -91,7 +79,7 @@ internal class MsDependencyInjectionTests
         _serviceProvider?.GetService<ILogger>().Should().NotBeNull();
     }
     
-    [Test]
+    [Fact]
     public void Verify_Resolving_IResilienceRetry_With_No_Logger_Throws_Exception()
     {
         // Arrange
@@ -105,7 +93,7 @@ internal class MsDependencyInjectionTests
         exception?.Message.Should().Be("Unable to resolve service for type 'Serilog.ILogger' while attempting to activate 'Resilience.Retry.ResilienceRetry'.");
     }
     
-    [Test]
+    [Fact]
     public void Verify_Resolving_IResilienceRetry_With_Manually_Created_Logger()
     {
         // Arrange
@@ -116,11 +104,10 @@ internal class MsDependencyInjectionTests
         var serviceProvider = _serviceCollection?.BuildServiceProvider();
         
         // Assert
-        Assert.DoesNotThrow(()=> serviceProvider?.GetService<IResilienceRetry>());
+        serviceProvider?.GetService<IResilienceRetry>();
     }
     
-    [TearDown]
-    public void TearDown()
+    public void Dispose()
     {
          _serviceProvider = null;
     }

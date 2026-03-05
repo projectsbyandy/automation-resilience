@@ -1,18 +1,13 @@
 using FluentAssertions;
+using Xunit;
 
 namespace Resilience.Retry.Tests;
 
-internal class RetryOptionsTests
+public class RetryOptionsTests
 {
-    private RetryOptions _sut;
+    private readonly RetryOptions _sut = new();
 
-    [SetUp]
-    public void Setup()
-    {
-        _sut = new RetryOptions();
-    }
-
-    [Test]
+    [Fact]
     public void Verify_Retries_Options_Default_Value()
     {
         // Arrange / Act / Assert
@@ -21,9 +16,10 @@ internal class RetryOptionsTests
         _sut.LogRetries.Should().BeFalse();
     }
     
-    [TestCase(-3)]
-    [TestCase(-1)]
-    [TestCase(0)]
+    [Theory]
+    [InlineData(-3)]
+    [InlineData(-1)]
+    [InlineData(0)]
     public void Verify_Retries_Less_Or_Equal_To_Zero_Throws_Argument_Exception(int retries)
     {
         // Arrange
@@ -35,22 +31,23 @@ internal class RetryOptionsTests
         exception.Message.Should().Be("Retries must be greater than zero.");
     }
     
-    [TestCase(1)]
-    [TestCase(10)]
-    [TestCase(99)]
+    [Theory]
+    [InlineData(1)]
+    [InlineData(10)]
+    [InlineData(99)]
     public void Verify_Retries_Greater_Than_Zero_Passes_Validation(int retries)
     {
         // Arrange
         _sut.Retries = retries;
         
         // Act / Assert
-        Assert.DoesNotThrow(() => _sut.Validate());
+        _sut.Validate();
     }
     
-    [TestCase(-3)]
-    [TestCase(-1)]
-    [TestCase(0)]
-    [TestCase(0)]
+    [Theory]
+    [InlineData(-3)]
+    [InlineData(-1)]
+    [InlineData(0)]
     public void Verify_Delay_Less_Or_Equal_To_Zero_Throws_Argument_Exception(int timespanSeconds)
     {
         // Arrange
@@ -62,34 +59,36 @@ internal class RetryOptionsTests
         exception.Message.Should().Be("Delay must be greater than zero.");
     }
     
-    public static IEnumerable<TestCaseData> DelayCasesLessThan1Hour()
+    public static TheoryData<TimeSpan> DelayCasesLessThan1Hour => new()
     {
-        yield return new TestCaseData(TimeSpan.FromSeconds(3599));
-        yield return new TestCaseData(TimeSpan.FromSeconds(3598));
-        yield return new TestCaseData(TimeSpan.FromMinutes(59));
-        yield return new TestCaseData(TimeSpan.FromMinutes(6));
-    }
+        TimeSpan.FromSeconds(3599),
+        TimeSpan.FromSeconds(3598),
+        TimeSpan.FromMinutes(59),
+        TimeSpan.FromMinutes(6)
+    };
     
-    [TestCaseSource(nameof(DelayCasesLessThan1Hour))]
+    [Theory]
+    [MemberData(nameof(DelayCasesLessThan1Hour))]    
     public void Verify_Delay_Greater_Than_Zero_Passes_Validation(TimeSpan delay)
     {
         // Arrange
         _sut.Delay = delay;
         
         // Act / Assert
-        Assert.DoesNotThrow(() => _sut.Validate());
+        _sut.Validate();
     }
 
-    public static IEnumerable<TestCaseData> DelayCases1HourOrGreater()
+    public static TheoryData<TimeSpan> DelayCases1HourOrGreater => new()
     {
-        yield return new TestCaseData(TimeSpan.FromSeconds(3600));
-        yield return new TestCaseData(TimeSpan.FromSeconds(3601));
-        yield return new TestCaseData(TimeSpan.FromMinutes(60));
-        yield return new TestCaseData(TimeSpan.FromMinutes(61));
-        yield return new TestCaseData(TimeSpan.FromHours(1));
-    }
+        TimeSpan.FromSeconds(3600),
+        TimeSpan.FromSeconds(3601),
+        TimeSpan.FromMinutes(60),
+        TimeSpan.FromMinutes(61),
+        TimeSpan.FromHours(1)
+    };
 
-    [TestCaseSource(nameof(DelayCases1HourOrGreater))]
+    [Theory]
+    [MemberData(nameof(DelayCases1HourOrGreater))]
     public void Verify_Delay_1hour_Or_More_Cannot_Be_Configured(TimeSpan delay)
     {
         // Arrange

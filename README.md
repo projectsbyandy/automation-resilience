@@ -2,12 +2,17 @@
 
 This is a C# based resiliency wrapper around Polly.Net
 
-The package provides useful helpers for handling async and synchronous code retries
+The package provides useful helpers for handling async and synchronous code retries. 
+
+Support for 
+- .NET Standard 2.0
+- .NET 8
+- .NET 10
 
 Demonstrates the following
 - Packaging to Nuget
 - Azure Pipelines
-- NUnit tests
+- XUnit tests
 
 # Usage
 

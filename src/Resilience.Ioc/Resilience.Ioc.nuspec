@@ -2,17 +2,18 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
     <metadata>
         <id>Automation.Resilience</id>
-        <version>0.0.1</version>
+        <version>0.0.2</version>
         <authors>Andrew Chang</authors>
         <projectUrl>https://github.com/projectsbyandy/automation-resilience</projectUrl>
         <description>Resilience library for automation frameworks</description>
         <tags>automation qa resilience</tags>
         <dependencies>
             <dependency id="BoDi" version="1.5" />
-            <dependency id="Polly" version="7.2.2" />
-            <dependency id="Serilog" version="2.10.0" />
-            <dependency id="Serilog.Sinks.Console" version="6.0.0" />
-            <dependency id="Microsoft.Extensions.DependencyInjection" version="8.0.0" />
+            <dependency id="Polly" version="8.6.6" />
+            <dependency id="Serilog" version="4.3.1" />
+            <dependency id="Serilog.Sinks.Console" version="6.0.1" />
+            <dependency id="Microsoft.Extensions.DependencyInjection" version="10.0.3" />
+            <dependency id="NETStandard.Library" version="2.0.0" />
         </dependencies>
     </metadata>
 </package>

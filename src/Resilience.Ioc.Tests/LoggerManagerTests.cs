@@ -1,11 +1,11 @@
 using FluentAssertions;
-using NUnit.Framework;
+using Xunit;
 
 namespace Resilience.Ioc.Tests;
 
-internal class LoggerManagerTests
+public class LoggerManagerTests
 {
-    [Test]
+    [Fact]
     public void Verify_LoggerManager_Create_Returns_Logger()
     {
         // Assemble / Act
